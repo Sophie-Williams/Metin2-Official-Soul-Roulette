@@ -1,0 +1,1 @@
+#define __BL_SOUL_ROULETTE__
