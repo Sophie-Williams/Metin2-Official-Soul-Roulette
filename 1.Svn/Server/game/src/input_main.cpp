@@ -14,7 +14,7 @@ void CInputMain::SoulRoulette(LPCHARACTER ch, const char* data)
 	if (!ch)
 		return;
 
-	const auto pinfo = reinterpret_cast<const TPacketCGSoulRoulette*>(data);
+	const TPacketCGSoulRoulette* pinfo = reinterpret_cast<const TPacketCGSoulRoulette*>(data);
 	enum { OPEN, CLOSE, TURN, GIVE };
 
 	switch (pinfo->option) {

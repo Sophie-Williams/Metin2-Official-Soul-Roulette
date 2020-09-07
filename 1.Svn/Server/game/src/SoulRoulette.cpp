@@ -56,7 +56,7 @@ void CSoulRoulette::TurnWheel()
 	}
 
 	if (ch->GetGold() < RoulettePrice) {
-		ch->ChatPacket(CHAT_TYPE_INFO, "You need %s yang for <Turning Wheel>", MoneyString().c_str());
+		ch->ChatPacket(CHAT_TYPE_INFO, "You need %s yang for <Soul Roulette>", MoneyString().c_str());
 		return;
 	}
 
@@ -92,9 +92,10 @@ int CSoulRoulette::PickAGift()
 
 	while (true) {
 		const int rand_pos = number(0, RouletteItemMax - 1);
+		const SRoulette& Roulette = SRouletteData[rand_pos];
 
-		if (Chance >= SRouletteData[rand_pos].chance) {
-			SetGift(SRouletteData[rand_pos].vnum, SRouletteData[rand_pos].count);
+		if (Chance >= Roulette.chance) {
+			SetGift(Roulette.vnum, Roulette.count);
 			return rand_pos;
 		}
 	}
