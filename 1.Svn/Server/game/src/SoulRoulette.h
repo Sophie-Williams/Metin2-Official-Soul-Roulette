@@ -15,7 +15,7 @@ public:
 	DWORD GetGiftVnum() const;
 	void SendPacket(BYTE option, int arg1 = 0 , int arg2 = 0);
 
-	static void ReadRouletteData(bool NoMoreItem = false);
+	static bool ReadRouletteData(bool NoMoreItem = false);
 	enum { OPEN, CLOSE, TURN };
 	struct SRoulette
 	{

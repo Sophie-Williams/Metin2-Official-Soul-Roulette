@@ -8,7 +8,11 @@
 ///Add
 #if defined(__BL_SOUL_ROULETTE__)
 			case 'r':
-				ch->ChatPacket(CHAT_TYPE_INFO, "Reloading <CSoulRoulette> data...");
-				CSoulRoulette::ReadRouletteData();
+				if (!CSoulRoulette::ReadRouletteData()) {
+					ch->ChatPacket(CHAT_TYPE_INFO, "Error Reloading <CSoulRoulette>!");
+					CSoulRoulette::ReadRouletteData(true); // reset
+				}
+				else
+					ch->ChatPacket(CHAT_TYPE_INFO, "<CSoulRoulette> Reloaded!");
 				break;
 #endif

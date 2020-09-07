@@ -8,6 +8,8 @@
 #if defined(__BL_SOUL_ROULETTE__)
 static int RoulettePrice = 250000;
 static const int RouletteItemMax = 20;
+static BYTE MinChance;
+static std::vector<CSoulRoulette::SRoulette*> v_RouletteItem;
 
 CSoulRoulette::CSoulRoulette(LPCHARACTER m_ch)
 	: ch(m_ch), gift_vnum(0), gift_count(1), turn_count(0)
@@ -20,18 +22,17 @@ CSoulRoulette::~CSoulRoulette() {
 		sys_log(0, "<CSoulRoulette> player(%s) didn't get his gift(vnum: %lu(%d.x))!!", ch->GetName(), GetGiftVnum(), GetGiftCount());
 }
 
-static std::vector<CSoulRoulette::SRoulette*> v_RouletteItem;
-
-void CSoulRoulette::ReadRouletteData(bool NoMoreItem)
+bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 {
-	for (size_t i = 0; i < v_RouletteItem.size(); i++)
-		delete v_RouletteItem[i];
+	for (std::vector<CSoulRoulette::SRoulette*>::const_iterator it = v_RouletteItem.begin(); it != v_RouletteItem.end(); ++it)
+		delete (*it);
 
 	v_RouletteItem.clear();
 
 	if (NoMoreItem)
-		return;
+		return true;
 
+	MinChance = 255; // avoid endless loop at pick gift
 	v_RouletteItem.reserve(RouletteItemMax);
 
 	char c_pszFileName[FILE_MAX_LEN];
@@ -42,46 +43,49 @@ void CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 
 	if (!loader->Load(c_pszFileName)) {
 		sys_err("ReadRouletteData %s: load error", c_pszFileName);
-		return;
+		return false;
 	}
 
-	const char* GroupName = "main";
-	CGroupNode * RouletteGroup = loader->GetGroup(GroupName);
+	static const char* GroupName = "main";
+	CGroupNode* RouletteGroup = loader->GetGroup(GroupName);
 
 	if (!RouletteGroup) {
 		sys_err("%s isn't exist!", GroupName);
-		return;
+		return false;
 	}
 
 	if (!RouletteGroup->GetRowCount()) {
 		sys_err("Group %s is empty!", GroupName);
-		return;
+		return false;
 	}
 
 	if (!RouletteGroup->GetValue("price", 0, RoulettePrice)) {
 		sys_err("Group %s does not have price.", RouletteGroup->GetNodeName().c_str());
-		return;
+		return false;
 	}
-	
-	for (int i = 0; i < RouletteItemMax && i < RouletteGroup->GetRowCount(); i++) {
+
+	for (int i = 0; i < RouletteItemMax && i < RouletteGroup->GetRowCount() - 1; i++) {
 		DWORD vnum;
 		BYTE count, chance;
-		
+
 		if (!RouletteGroup->GetValue(i, "vnum", vnum)) {
-			sys_err("RouletteGroup vnum error.");
-			return;
+			sys_err("CSoulRoulette::RouletteGroup vnum error. (line: %d)", i + 1);
+			return false;
 		}
 		if (!RouletteGroup->GetValue(i, "count", count)) {
-			sys_err("RouletteGroup count error.");
-			return;
+			sys_err("CSoulRoulette::RouletteGroup count error. (line: %d)", i + 1);
+			return false;
 		}
 		if (!RouletteGroup->GetValue(i, "chance", chance)) {
-			sys_err("RouletteGroup chance error.");
-			return;
+			sys_err("CSoulRoulette::RouletteGroup chance error. (line: %d)", i + 1);
+			return false;
 		}
-		auto data = new CSoulRoulette::SRoulette(vnum, count, chance);
+		SRoulette* data = new SRoulette(vnum, count, chance);
 		v_RouletteItem.push_back(data);
+		if (MinChance > chance)
+			MinChance = chance;
 	}
+	return true;
 }
 
 void CSoulRoulette::SendPacket(BYTE option, int arg1, int arg2)
@@ -94,16 +98,16 @@ void CSoulRoulette::SendPacket(BYTE option, int arg1, int arg2)
 
 	p.header = HEADER_GC_SOUL_ROULETTE;
 	p.option = option;
-	
+
 	switch (option) {
 	case CSoulRoulette::OPEN:
 		p.yang = RoulettePrice;
 		for (size_t i = 0; option == CSoulRoulette::OPEN && i < v_RouletteItem.size(); i++) {
 			p.ItemInfo[i].vnum = v_RouletteItem[i]->vnum;
 			p.ItemInfo[i].count = v_RouletteItem[i]->count;
-		}	
-	break;
-	case CSoulRoulette::TURN: 
+		}
+		break;
+	case CSoulRoulette::TURN:
 		p.ItemInfo[0].vnum = arg1;
 		p.ItemInfo[0].count = arg2;
 		break;
@@ -129,7 +133,7 @@ static std::string MoneyString()
 void CSoulRoulette::TurnWheel()
 {
 	if (GetGiftVnum()) {
-		ch->ChatPacket(CHAT_TYPE_INFO, "Please wait, wheel is turning.");
+		ch->ChatPacket(CHAT_TYPE_INFO, "Please wait, <Soul Roulette> is active now.");
 		return;
 	}
 
@@ -140,7 +144,7 @@ void CSoulRoulette::TurnWheel()
 
 	int Rand = PickAGift();
 	if (Rand == -1) {
-		sys_err("CSoulRoulette::TurnWheel() Error Pick Gift (%s)", ch->GetName());
+		ch->ChatPacket(CHAT_TYPE_INFO, "<Soul Roulette> is currently disabled. Please try again later.");
 		return;
 	}
 
@@ -168,7 +172,7 @@ int CSoulRoulette::PickAGift()
 {
 	const BYTE Chance = GetChance();
 
-	while (v_RouletteItem.size()) {
+	while (v_RouletteItem.size() && Chance >= MinChance) {
 		const int rand_pos = number(0, static_cast<int>(v_RouletteItem.size()) - 1);
 		const SRoulette* Roulette = v_RouletteItem[rand_pos];
 
@@ -196,7 +200,7 @@ void CSoulRoulette::GiveGift()
 		SetGift(0, 1); // reset
 	}
 	else
-		sys_err("Dude, where is the gift_vnum? <player: %s>", ch->GetName());
+		sys_err("CSoulRoulette::GiveGift: <player: %s> is trying to get item without item data.", ch->GetName());
 }
 
 DWORD CSoulRoulette::GetGiftVnum() const
