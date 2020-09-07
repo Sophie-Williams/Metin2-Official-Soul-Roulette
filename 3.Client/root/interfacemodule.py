@@ -40,9 +40,9 @@ if app.__BL_SOUL_ROULETTE__:
 			
 #Add	
 	if app.__BL_SOUL_ROULETTE__:
-		def Roulette_OPEN(self):
+		def Roulette_Open(self, price):
 			if self.wndMiniGameRoulette:
-				self.wndMiniGameRoulette.Show()			
+				self.wndMiniGameRoulette.Show(price)
 		def Roulette_Close(self):
 			if self.wndMiniGameRoulette:
 				self.wndMiniGameRoulette.Hide()
@@ -51,4 +51,4 @@ if app.__BL_SOUL_ROULETTE__:
 				self.wndMiniGameRoulette.TurnWheel(spin, i)
 		def Roulette_SetIcons(self, i, vnum, count):
 			if self.wndMiniGameRoulette:
-				self.wndMiniGameRoulette.SetSlotItem(int(i), int(vnum), int(count))
+				self.wndMiniGameRoulette.SetSlotItem(i, vnum, count)

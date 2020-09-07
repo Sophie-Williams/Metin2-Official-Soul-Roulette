@@ -1,28 +1,18 @@
 #include "stdafx.h"
 #include "char.h"
+#include "packet.h"
+#include "desc.h"
+#include "group_text_parse_tree.h"
+#include "locale_service.h"
 
 #if defined(__BL_SOUL_ROULETTE__)
-static const int RoulettePrice = 250000;
+static int RoulettePrice = 250000;
 static const int RouletteItemMax = 20;
-static const struct SRoulette
-{
-	DWORD vnum;
-	BYTE count;
-	BYTE chance; // max 255
-} SRouletteData[RouletteItemMax] = {
-	{ 50011, 61, 0 }, { 1019, 1, 0 }, { 1029, 1, 0 }, { 1039, 1, 0 },
-	{ 1049, 1, 0 }, { 1059, 1, 0 }, { 1069, 1, 0 }, { 1079, 1, 0 },
-	{ 1089, 1, 0 }, { 1099, 1, 0 }, { 1109, 1, 100 }, { 1119, 1, 0 },
-	{ 1129, 1, 0 }, { 1139, 1, 0 }, { 1149, 1, 0 }, { 1159, 1, 0 },
-	{ 1169, 1, 0 }, { 1179, 1, 0 }, { 1189, 1, 0 }, { 1349, 1, 0 }
-};
 
 CSoulRoulette::CSoulRoulette(LPCHARACTER m_ch)
 	: ch(m_ch), gift_vnum(0), gift_count(1), turn_count(0)
 {
-	for (int i = 0; i < RouletteItemMax; i++)
-		ch->ChatPacket(CHAT_TYPE_COMMAND, "BINARY_ROULETTE_ICON %d %lu %d", i, SRouletteData[i].vnum, SRouletteData[i].count);
-	ch->ChatPacket(CHAT_TYPE_COMMAND, "BINARY_ROULETTE_OPEN");
+	SendPacket(OPEN);
 }
 
 CSoulRoulette::~CSoulRoulette() {
@@ -30,14 +20,102 @@ CSoulRoulette::~CSoulRoulette() {
 		sys_log(0, "<CSoulRoulette> player(%s) didn't get his gift(vnum: %lu(%d.x))!!", ch->GetName(), GetGiftVnum(), GetGiftCount());
 }
 
-static std::string& MoneyString()
-{
-	static std::string str;
-	if (!str.empty())
-		return str;
+static std::vector<CSoulRoulette::SRoulette*> v_RouletteItem;
 
+void CSoulRoulette::ReadRouletteData(bool NoMoreItem)
+{
+	for (size_t i = 0; i < v_RouletteItem.size(); i++)
+		delete v_RouletteItem[i];
+
+	v_RouletteItem.clear();
+
+	if (NoMoreItem)
+		return;
+
+	v_RouletteItem.reserve(RouletteItemMax);
+
+	char c_pszFileName[FILE_MAX_LEN];
+	snprintf(c_pszFileName, sizeof(c_pszFileName), "%s/Roulette_Items.txt", LocaleService_GetBasePath().c_str());
+
+	//std::auto_ptr<CGroupTextParseTreeLoader> loader(new CGroupTextParseTreeLoader());
+	std::unique_ptr<CGroupTextParseTreeLoader> loader(new CGroupTextParseTreeLoader());
+
+	if (!loader->Load(c_pszFileName)) {
+		sys_err("ReadRouletteData %s: load error", c_pszFileName);
+		return;
+	}
+
+	const char* GroupName = "main";
+	CGroupNode * RouletteGroup = loader->GetGroup(GroupName);
+
+	if (!RouletteGroup) {
+		sys_err("%s isn't exist!", GroupName);
+		return;
+	}
+
+	if (!RouletteGroup->GetRowCount()) {
+		sys_err("Group %s is empty!", GroupName);
+		return;
+	}
+
+	if (!RouletteGroup->GetValue("price", 0, RoulettePrice)) {
+		sys_err("Group %s does not have price.", RouletteGroup->GetNodeName().c_str());
+		return;
+	}
+	
+	for (int i = 0; i < RouletteItemMax && i < RouletteGroup->GetRowCount(); i++) {
+		DWORD vnum;
+		BYTE count, chance;
+		
+		if (!RouletteGroup->GetValue(i, "vnum", vnum)) {
+			sys_err("RouletteGroup vnum error.");
+			return;
+		}
+		if (!RouletteGroup->GetValue(i, "count", count)) {
+			sys_err("RouletteGroup count error.");
+			return;
+		}
+		if (!RouletteGroup->GetValue(i, "chance", chance)) {
+			sys_err("RouletteGroup chance error.");
+			return;
+		}
+		auto data = new CSoulRoulette::SRoulette(vnum, count, chance);
+		v_RouletteItem.push_back(data);
+	}
+}
+
+void CSoulRoulette::SendPacket(BYTE option, int arg1, int arg2)
+{
+	if (!ch->GetDesc())
+		return;
+
+	TPacketGCSoulRoulette p;
+	memset(&p, 0, sizeof(p));
+
+	p.header = HEADER_GC_SOUL_ROULETTE;
+	p.option = option;
+	
+	switch (option) {
+	case CSoulRoulette::OPEN:
+		p.yang = RoulettePrice;
+		for (size_t i = 0; option == CSoulRoulette::OPEN && i < v_RouletteItem.size(); i++) {
+			p.ItemInfo[i].vnum = v_RouletteItem[i]->vnum;
+			p.ItemInfo[i].count = v_RouletteItem[i]->count;
+		}	
+	break;
+	case CSoulRoulette::TURN: 
+		p.ItemInfo[0].vnum = arg1;
+		p.ItemInfo[0].count = arg2;
+		break;
+	}
+
+	ch->GetDesc()->Packet(&p, sizeof(TPacketGCSoulRoulette));
+}
+
+static std::string MoneyString()
+{
 	const int comma = 3;
-	str = std::to_string(RoulettePrice);
+	std::string str = std::to_string(RoulettePrice);
 	int pos = static_cast<int>(str.length()) - comma;
 
 	while (pos > 0) {
@@ -51,7 +129,7 @@ static std::string& MoneyString()
 void CSoulRoulette::TurnWheel()
 {
 	if (GetGiftVnum()) {
-		ch->ChatPacket(CHAT_TYPE_INFO, "Wait motherfucker!");
+		ch->ChatPacket(CHAT_TYPE_INFO, "Please wait, wheel is turning.");
 		return;
 	}
 
@@ -69,7 +147,7 @@ void CSoulRoulette::TurnWheel()
 	ch->PointChange(POINT_GOLD, -RoulettePrice);
 
 	//spin count, pos
-	ch->ChatPacket(CHAT_TYPE_COMMAND, "BINARY_ROULETTE_TURN %d %d", number(1, 3), Rand);
+	SendPacket(CSoulRoulette::TURN, number(1, 3), Rand);
 
 	turn_count++;
 }
@@ -90,12 +168,12 @@ int CSoulRoulette::PickAGift()
 {
 	const BYTE Chance = GetChance();
 
-	while (true) {
-		const int rand_pos = number(0, RouletteItemMax - 1);
-		const SRoulette& Roulette = SRouletteData[rand_pos];
+	while (v_RouletteItem.size()) {
+		const int rand_pos = number(0, static_cast<int>(v_RouletteItem.size()) - 1);
+		const SRoulette* Roulette = v_RouletteItem[rand_pos];
 
-		if (Chance >= Roulette.chance) {
-			SetGift(Roulette.vnum, Roulette.count);
+		if (Chance >= Roulette->chance) {
+			SetGift(Roulette->vnum, Roulette->count);
 			return rand_pos;
 		}
 	}
@@ -109,7 +187,7 @@ void CSoulRoulette::SetGift(const DWORD vnum, const BYTE count)
 	gift_count = count;
 }
 
-void CSoulRoulette::GiveMyFuckingGift()
+void CSoulRoulette::GiveGift()
 {
 	const DWORD GiftVnum = GetGiftVnum();
 

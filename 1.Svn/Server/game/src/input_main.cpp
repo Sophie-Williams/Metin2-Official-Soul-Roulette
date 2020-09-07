@@ -25,11 +25,11 @@ void CInputMain::SoulRoulette(LPCHARACTER ch, const char* data)
 	case CLOSE:
 		if (ch->GetSoulRoulette()) {
 			if (ch->GetSoulRoulette()->GetGiftVnum())
-				ch->ChatPacket(CHAT_TYPE_INFO, "Wait motherfucker!");
+				ch->ChatPacket(CHAT_TYPE_INFO, "Please wait, wheel is turning.");
 			else
 			{
+				ch->GetSoulRoulette()->SendPacket(CSoulRoulette::CLOSE);
 				ch->SetSoulRoulette(NULL);
-				ch->ChatPacket(CHAT_TYPE_COMMAND, "BINARY_ROULETTE_CLOSE");
 			}
 		}
 		break;
@@ -39,7 +39,7 @@ void CInputMain::SoulRoulette(LPCHARACTER ch, const char* data)
 		break;
 	case GIVE:
 		if (ch->GetSoulRoulette())
-			ch->GetSoulRoulette()->GiveMyFuckingGift();
+			ch->GetSoulRoulette()->GiveGift();
 		break;
 	default:
 		sys_err("CInputMain::SoulRoulette : Unknown option %d : %s", pinfo->option, ch->GetName());

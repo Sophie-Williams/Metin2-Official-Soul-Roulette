@@ -1,6 +1,6 @@
 #Created by blackdragonx61(Mali61)
 
-import ui, app, net, wndMgr
+import ui, app, net, wndMgr, localeInfo
 
 ROULETTE_SLOT_MAX = 20
 
@@ -15,6 +15,8 @@ class RouletteWindow(ui.ScriptWindow):
 		self.item_vnums						= [0 for col in range(0, ROULETTE_SLOT_MAX)]
 		self.tooltipItem					= None
 		self.IsTurning						= False
+		self.Price							= None
+		self.Soul							= None
 		self.CurrentPos						= 0
 		self.NextPos						= -1
 		self.SpinTour 						= 1
@@ -24,9 +26,10 @@ class RouletteWindow(ui.ScriptWindow):
 	def __del__(self):
 		ui.ScriptWindow.__del__(self)
 		
-	def Show(self):
+	def Show(self, price):
 		self.__LoadWindow()
 		self.Reset()
+		self.Price.SetText(localeInfo.NumberToMoneyString(price))
 		ui.ScriptWindow.Show(self)
 		self.SetTop()
 
@@ -58,7 +61,10 @@ class RouletteWindow(ui.ScriptWindow):
 			self.slot_edge_effect			= self.GetChild("slot_edge_effect")			
 			self.items_slot					= self.GetChild("item_slot")
 			self.slot_edge_effect			= self.GetChild("slot_edge_effect")
-			
+			self.Soul						= self.GetChild("spin_button_text2")
+			self.Soul.Hide() # 50 Soul Text Hide
+			self.Price						= self.GetChild("spin_button_text3")
+		
 		except:
 			import exception
 			exception.Abort("RouletteWindow.LoadWindow.__BindObject")
@@ -83,8 +89,8 @@ class RouletteWindow(ui.ScriptWindow):
 	
 	def TurnWheel(self, spin, i):
 		self.spin_button.Disable()
-		self.SpinTour = int(spin)
-		self.NextPos = int(i)
+		self.SpinTour = spin
+		self.NextPos = i
 		self.IsTurning = True
 		
 	def OnUpdate(self):
@@ -119,6 +125,10 @@ class RouletteWindow(ui.ScriptWindow):
 		self.Reset()
 		self.item_vnums	= [0 for col in range(0, ROULETTE_SLOT_MAX)]
 		self.tooltipItem			= None
+		if self.Price:
+			del self.Price
+		if self.Soul:
+			del self.Soul
 		if self.spin_button:
 			del self.spin_button
 		if self.slot_edge_effect:
