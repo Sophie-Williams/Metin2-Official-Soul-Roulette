@@ -41,7 +41,7 @@ class RouletteWindow(ui.ScriptWindow):
 		wndMgr.Hide(self.hWnd)
 		
 	def Close(self):
-		net.SoulRoulettePacket(1) # Request Close
+		net.SoulRoulettePacket(0) # Request Close
 		
 	def __LoadScript(self, fileName):
 		pyScrLoader = ui.PythonScriptLoader()
@@ -89,7 +89,7 @@ class RouletteWindow(ui.ScriptWindow):
 			exception.Abort("RouletteWindow.LoadWindow.__BindEvent")
 			
 	def TurnPacket(self):
-		net.SoulRoulettePacket(2) # Request Turn
+		net.SoulRoulettePacket(1) # Request Turn
 		self.PopupDialog.Close()
 		
 	def EdgeEffect(self, i):
@@ -111,7 +111,7 @@ class RouletteWindow(ui.ScriptWindow):
 		self.lastUpdate = app.GetGlobalTime()
 		
 		if self.CurrentPos == self.NextPos and self.SpinTourCount <= 0:
-			net.SoulRoulettePacket(3) # Request gift
+			net.SoulRoulettePacket(2) # Request gift
 			self.IsTurning = False
 			self.NextPos = -1
 			self.SpinTourCount = 1

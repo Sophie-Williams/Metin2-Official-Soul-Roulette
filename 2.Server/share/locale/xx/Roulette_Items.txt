@@ -1,5 +1,6 @@
 Group Main										
 {							
+	active	1
 	price	250000
 	#--#	vnum	count	chance		
 	1	38050	1	0

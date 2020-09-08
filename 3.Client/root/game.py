@@ -1,11 +1,4 @@
 #Find
-		onPressKeyDict[app.DIK_F4]	= lambda : self.__PressQuickSlot(7)
-		
-#Add
-		if app.__BL_SOUL_ROULETTE__:
-			onPressKeyDict[app.DIK_F7]	= lambda : net.SoulRoulettePacket(0)
-	
-#Find
 	def AskSafeboxPassword(self):
 		self.interface.AskSafeboxPassword()
 		

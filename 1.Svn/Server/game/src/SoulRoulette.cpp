@@ -5,16 +5,19 @@
 #include "group_text_parse_tree.h"
 #include "locale_service.h"
 #include "log.h"
+#include "config.h"
+#include "sectree_manager.h"
 
 #if defined(__BL_SOUL_ROULETTE__)
 static int RoulettePrice = 250000;
 static BYTE MinChance;
+static bool EventActive;
 static std::vector<CSoulRoulette::SRoulette*> v_RouletteItem;
 
 CSoulRoulette::CSoulRoulette(LPCHARACTER m_ch)
 	: ch(m_ch), gift_vnum(0), gift_count(1), turn_count(0)
 {
-	SendPacket(OPEN);
+	SendPacket(CSoulRoulette::OPEN);
 }
 
 CSoulRoulette::~CSoulRoulette() {
@@ -59,8 +62,16 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 		return false;
 	}
 
+	if (!RouletteGroup->GetValue("active", 0, EventActive)) {
+		sys_err("Group %s does not have: active.", RouletteGroup->GetNodeName().c_str());
+		return false;
+	}
+
+	if (!EventActive) // event disabled, no need to add items
+		return true;
+
 	if (!RouletteGroup->GetValue("price", 0, RoulettePrice)) {
-		sys_err("Group %s does not have price.", RouletteGroup->GetNodeName().c_str());
+		sys_err("Group %s does not have: price.", RouletteGroup->GetNodeName().c_str());
 		return false;
 	}
 
@@ -72,19 +83,24 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 			sys_err("CSoulRoulette::RouletteGroup vnum error. (line: %d)", i + 1);
 			return false;
 		}
+
 		if (!RouletteGroup->GetValue(i, "count", count)) {
 			sys_err("CSoulRoulette::RouletteGroup count error. (line: %d)", i + 1);
 			return false;
 		}
+
 		if (!RouletteGroup->GetValue(i, "chance", chance)) {
 			sys_err("CSoulRoulette::RouletteGroup chance error. (line: %d)", i + 1);
 			return false;
 		}
+
 		SRoulette* data = new SRoulette(vnum, count, chance);
 		v_RouletteItem.push_back(data);
+
 		if (MinChance > chance)
 			MinChance = chance;
 	}
+
 	return true;
 }
 
@@ -156,18 +172,6 @@ void CSoulRoulette::TurnWheel()
 	turn_count++;
 }
 
-BYTE CSoulRoulette::GetChance() const
-{
-	const WORD TurnCount = GetTurnCount();
-	if (TurnCount >= 10 && TurnCount < 25)
-		return 25;
-	if (TurnCount >= 25 && TurnCount < 40)
-		return 50;
-	if (TurnCount >= 40)
-		return 255; // max
-	return 0;
-}
-
 int CSoulRoulette::PickAGift()
 {
 	const BYTE Chance = GetChance();
@@ -185,12 +189,6 @@ int CSoulRoulette::PickAGift()
 	return -1;
 }
 
-void CSoulRoulette::SetGift(const DWORD vnum, const BYTE count)
-{
-	gift_vnum = vnum;
-	gift_count = count;
-}
-
 void CSoulRoulette::GiveGift()
 {
 	const DWORD GiftVnum = GetGiftVnum();
@@ -201,6 +199,24 @@ void CSoulRoulette::GiveGift()
 	}
 	else
 		sys_err("CSoulRoulette::GiveGift: <player: %s> is trying to get item without item data.", ch->GetName());
+}
+
+void CSoulRoulette::SetGift(const DWORD vnum, const BYTE count)
+{
+	gift_vnum = vnum;
+	gift_count = count;
+}
+
+BYTE CSoulRoulette::GetChance() const
+{
+	const WORD TurnCount = GetTurnCount();
+	if (TurnCount >= 10 && TurnCount < 25)
+		return 25;
+	if (TurnCount >= 25 && TurnCount < 40)
+		return 50;
+	if (TurnCount >= 40)
+		return 255; // max
+	return 0;
 }
 
 DWORD CSoulRoulette::GetGiftVnum() const
