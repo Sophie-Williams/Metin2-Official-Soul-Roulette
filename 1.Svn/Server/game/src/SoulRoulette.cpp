@@ -4,6 +4,7 @@
 #include "desc.h"
 #include "group_text_parse_tree.h"
 #include "locale_service.h"
+#include "log.h"
 
 #if defined(__BL_SOUL_ROULETTE__)
 static int RoulettePrice = 250000;
@@ -18,7 +19,7 @@ CSoulRoulette::CSoulRoulette(LPCHARACTER m_ch)
 
 CSoulRoulette::~CSoulRoulette() {
 	if (GetGiftVnum())
-		sys_log(0, "<CSoulRoulette> player(%s) didn't get his gift(vnum: %lu(%d.x))!!", ch->GetName(), GetGiftVnum(), GetGiftCount());
+		LogManager::instance().SoulRouletteLog(ch->GetName(), GetGiftVnum(), GetGiftCount());
 }
 
 bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
