@@ -151,7 +151,7 @@ void CSoulRoulette::TurnWheel()
 	ch->PointChange(POINT_GOLD, -RoulettePrice);
 
 	//spin count, pos
-	SendPacket(CSoulRoulette::TURN, number(1, 3), Rand);
+	SendPacket(CSoulRoulette::TURN, number(3, 5), Rand);
 
 	turn_count++;
 }

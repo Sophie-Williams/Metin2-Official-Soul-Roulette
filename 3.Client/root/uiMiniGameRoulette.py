@@ -1,8 +1,10 @@
 #Created by blackdragonx61(Mali61)
 
-import ui, app, net, wndMgr, localeInfo
+import ui, app, net, wndMgr, localeInfo, uiCommon, player
 
-ROULETTE_SLOT_MAX = 20
+ROULETTE_SLOT_MAX = player.ROULETTE_ITEM_MAX
+spin_time = (325, 105, 75, 40, 25, 10)
+edge_effect_pos_tuple = ((25, 46), (69, 46), (113, 46), (157, 46), (201, 46), (245, 46), (245, 90), (245, 134), (245, 178), (245, 222), (245, 266), (201, 266), (157, 266), (113, 266), (69, 266), (25, 266), (25, 222), (25, 178), (25, 134), (25, 90))
 
 class RouletteWindow(ui.ScriptWindow):		
 	def __init__(self):
@@ -17,9 +19,10 @@ class RouletteWindow(ui.ScriptWindow):
 		self.IsTurning						= False
 		self.Price							= None
 		self.Soul							= None
+		self.PopupDialog					= None
 		self.CurrentPos						= 0
 		self.NextPos						= -1
-		self.SpinTour 						= 1
+		self.SpinTourCount 					= 1
 		self.lastUpdate 					= 0
 		self.__LoadWindow()
 		
@@ -31,6 +34,7 @@ class RouletteWindow(ui.ScriptWindow):
 		self.Reset()
 		self.Price.SetText(localeInfo.NumberToMoneyString(price))
 		ui.ScriptWindow.Show(self)
+		self.SetCenterPosition()
 		self.SetTop()
 
 	def Hide(self):
@@ -76,40 +80,49 @@ class RouletteWindow(ui.ScriptWindow):
 				self.items_slot.SetOverOutItemEvent(ui.__mem_func__(self.__SlotOverOutItem))
 			if self.spin_button:
 				self.spin_button.SetEvent( ui.__mem_func__(self.TurnPacket) )
+				
+			self.PopupDialog = uiCommon.PopupDialog()
+			self.PopupDialog.SetText(localeInfo.ROULETTE_REWARD_TEXT)
+			
 		except:
 			import exception
 			exception.Abort("RouletteWindow.LoadWindow.__BindEvent")
 			
 	def TurnPacket(self):
 		net.SoulRoulettePacket(2) # Request Turn
+		self.PopupDialog.Close()
 		
 	def EdgeEffect(self, i):
-		edge_effect_pos_tuple = ((25, 46), (69, 46), (113, 46), (157, 46), (201, 46), (245, 46), (245, 90), (245, 134), (245, 178), (245, 222), (245, 266), (201, 266), (157, 266), (113, 266), (69, 266), (25, 266), (25, 222), (25, 178), (25, 134), (25, 90))
 		self.slot_edge_effect.SetPosition(edge_effect_pos_tuple[i][0], edge_effect_pos_tuple[i][1])
 	
 	def TurnWheel(self, spin, i):
 		self.spin_button.Disable()
-		self.SpinTour = spin
+		self.SpinTourCount = spin
 		self.NextPos = i
 		self.IsTurning = True
-		
-	def OnUpdate(self):
-		if not self.IsTurning or app.GetGlobalTime() - self.lastUpdate < 100:
+			
+	def OnUpdate(self):		
+		if not self.IsTurning:
+			return
+			
+		if app.GetGlobalTime() - self.lastUpdate < spin_time[self.SpinTourCount]:
 			return
 			
 		self.lastUpdate = app.GetGlobalTime()
 		
-		if self.CurrentPos == self.NextPos and self.SpinTour <= 0:
+		if self.CurrentPos == self.NextPos and self.SpinTourCount <= 0:
 			net.SoulRoulettePacket(3) # Request gift
 			self.IsTurning = False
 			self.NextPos = -1
-			self.SpinTour = 1
+			self.SpinTourCount = 1
 			self.spin_button.Enable()
+			self.PopupDialog.Open()
 		else:
 			self.CurrentPos += 1
 			if self.CurrentPos >= ROULETTE_SLOT_MAX:
 				self.CurrentPos = 0
-				self.SpinTour -= 1
+				if self.SpinTourCount > 0:
+					self.SpinTourCount -= 1
 			self.EdgeEffect(self.CurrentPos)
 			
 	def Reset(self):		
@@ -118,13 +131,14 @@ class RouletteWindow(ui.ScriptWindow):
 		self.lastUpdate = 0	
 		self.CurrentPos = 0
 		self.NextPos = -1
-		self.SpinTour = 1
+		self.SpinTourCount = 1
+		self.PopupDialog.Close()
 		
 	def Destroy(self):
 		self.isLoaded = 0
 		self.Reset()
 		self.item_vnums	= [0 for col in range(0, ROULETTE_SLOT_MAX)]
-		self.tooltipItem			= None
+		self.tooltipItem = None
 		if self.Price:
 			del self.Price
 		if self.Soul:
@@ -135,6 +149,8 @@ class RouletteWindow(ui.ScriptWindow):
 			del self.slot_edge_effect
 		if self.items_slot:
 			del self.items_slot
+		if self.PopupDialog:
+			del self.PopupDialog
 		
 	def SetSlotItem(self, slotIndex, item_vnum, item_count):
 		if not self.items_slot or not self.item_vnums:
@@ -154,3 +170,4 @@ class RouletteWindow(ui.ScriptWindow):
 			
 	def SetItemToolTip(self, tooltipItem):
 		self.tooltipItem = tooltipItem	
+		

@@ -36,6 +36,6 @@ typedef struct command_gcroulette
 	struct {
 		DWORD vnum;
 		BYTE count;
-	} ItemInfo[20];
+	} ItemInfo[ROULETTE_ITEM_MAX];
 } TPacketGCSoulRoulette;
 #endif

@@ -21,15 +21,15 @@ void CPythonNetworkStream::ToggleGameDebugInfo()
 bool CPythonNetworkStream::RecvSoulRoulette()
 {
 	TPacketGCSoulRoulette Packet;
-	if (!Recv(sizeof(Packet), &Packet))
-	{
+	if (!Recv(sizeof(Packet), &Packet)) {
 		Tracen("RecvSoulRoulette Error");
 		return false;
 	}
+
 	enum { OPEN, CLOSE, TURN };
 	switch (Packet.option) {
 	case OPEN:
-		for (int i = 0; i < sizeof(Packet.ItemInfo) / sizeof(Packet.ItemInfo[0]); i++)
+		for (int i = 0; i < ROULETTE_ITEM_MAX; i++)
 			PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_ROULETTE_ICON", Py_BuildValue("(iii)", i, Packet.ItemInfo[i].vnum, Packet.ItemInfo[i].count));
 		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_ROULETTE_OPEN", Py_BuildValue("(i)", Packet.yang));
 		break;
@@ -40,6 +40,7 @@ bool CPythonNetworkStream::RecvSoulRoulette()
 		PyCallClassMemberFunc(m_apoPhaseWnd[PHASE_WINDOW_GAME], "BINARY_ROULETTE_TURN", Py_BuildValue("(ii)", Packet.ItemInfo[0].vnum, Packet.ItemInfo[0].count));
 		break;
 	}
+
 	return true;
 }
 bool CPythonNetworkStream::SoulRoulette(const BYTE option)
