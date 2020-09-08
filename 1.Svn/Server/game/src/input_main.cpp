@@ -25,7 +25,7 @@ void CInputMain::SoulRoulette(LPCHARACTER ch, const char* data)
 	case CLOSE:
 		if (ch->GetSoulRoulette()) {
 			if (ch->GetSoulRoulette()->GetGiftVnum())
-				ch->ChatPacket(CHAT_TYPE_INFO, "Please wait, wheel is turning.");
+				ch->ChatPacket(CHAT_TYPE_INFO, "Please wait, <Soul Roulette> is active now.");
 			else
 			{
 				ch->GetSoulRoulette()->SendPacket(CSoulRoulette::CLOSE);
