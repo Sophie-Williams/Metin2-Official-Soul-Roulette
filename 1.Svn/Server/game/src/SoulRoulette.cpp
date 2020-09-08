@@ -7,7 +7,6 @@
 
 #if defined(__BL_SOUL_ROULETTE__)
 static int RoulettePrice = 250000;
-static const int RouletteItemMax = 20;
 static BYTE MinChance;
 static std::vector<CSoulRoulette::SRoulette*> v_RouletteItem;
 
@@ -33,7 +32,7 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 		return true;
 
 	MinChance = 255; // avoid endless loop at pick gift
-	v_RouletteItem.reserve(RouletteItemMax);
+	v_RouletteItem.reserve(ROULETTE_ITEM_MAX);
 
 	char c_pszFileName[FILE_MAX_LEN];
 	snprintf(c_pszFileName, sizeof(c_pszFileName), "%s/Roulette_Items.txt", LocaleService_GetBasePath().c_str());
@@ -64,7 +63,7 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 		return false;
 	}
 
-	for (int i = 0; i < RouletteItemMax && i < RouletteGroup->GetRowCount() - 1; i++) {
+	for (int i = 0; i < ROULETTE_ITEM_MAX && i < RouletteGroup->GetRowCount() - 1; i++) {
 		DWORD vnum;
 		BYTE count, chance;
 

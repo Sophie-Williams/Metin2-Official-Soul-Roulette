@@ -15,7 +15,6 @@ public:
 	DWORD GetGiftVnum() const;
 	void SendPacket(BYTE option, int arg1 = 0 , int arg2 = 0);
 
-	static bool ReadRouletteData(bool NoMoreItem = false);
 	enum { OPEN, CLOSE, TURN };
 	struct SRoulette
 	{
@@ -25,6 +24,8 @@ public:
 		SRoulette(DWORD m_vnum, BYTE m_count, BYTE m_chance)
 			: vnum(m_vnum), count(m_count), chance(m_chance) {}
 	};
+
+	static bool ReadRouletteData(bool NoMoreItem = false);
 
 private:
 	void SetGift(const DWORD vnum, const BYTE count);
