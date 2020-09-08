@@ -102,7 +102,7 @@ void CSoulRoulette::SendPacket(BYTE option, int arg1, int arg2)
 	switch (option) {
 	case CSoulRoulette::OPEN:
 		p.yang = RoulettePrice;
-		for (size_t i = 0; option == CSoulRoulette::OPEN && i < v_RouletteItem.size(); i++) {
+		for (size_t i = 0; i < v_RouletteItem.size(); i++) {
 			p.ItemInfo[i].vnum = v_RouletteItem[i]->vnum;
 			p.ItemInfo[i].count = v_RouletteItem[i]->count;
 		}
