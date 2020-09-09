@@ -21,7 +21,7 @@ CSoulRoulette::CSoulRoulette(LPCHARACTER m_ch)
 
 CSoulRoulette::~CSoulRoulette() {
 	if (GetGiftVnum())
-		LogManager::instance().SoulRouletteLog(ch->GetName(), GetGiftVnum(), GetGiftCount());
+		LogManager::instance().SoulRouletteLog(ch->GetName(), GetGiftVnum(), GetGiftCount(), false);
 }
 
 template <typename T> std::string NumberToString(T Number)
@@ -210,6 +210,7 @@ void CSoulRoulette::GiveGift()
 
 	if (GiftVnum) {
 		ch->AutoGiveItem(GiftVnum, GetGiftCount());
+		LogManager::instance().SoulRouletteLog(ch->GetName(), GiftVnum, GetGiftCount(), true);
 		SetGift(0, 1); // reset
 	}
 	else
