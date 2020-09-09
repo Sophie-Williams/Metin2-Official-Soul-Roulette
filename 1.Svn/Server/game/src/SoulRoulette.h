@@ -23,6 +23,14 @@ public:
 		BYTE chance; // max 255
 		SRoulette(DWORD m_vnum, BYTE m_count, BYTE m_chance)
 			: vnum(m_vnum), count(m_count), chance(m_chance) {}
+		
+		struct ByChance 
+		{
+			bool operator ()(const CSoulRoulette::SRoulette* a, const CSoulRoulette::SRoulette* b) const
+			{
+				return a->chance < b->chance;
+			}
+		};
 	};
 
 	static bool ReadRouletteData(bool NoMoreItem = false);

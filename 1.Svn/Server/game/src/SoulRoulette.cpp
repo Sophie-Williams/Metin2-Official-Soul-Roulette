@@ -10,7 +10,6 @@
 
 #if defined(__BL_SOUL_ROULETTE__)
 static int RoulettePrice = 250000;
-static BYTE MinChance;
 static bool EventActive;
 static std::vector<CSoulRoulette::SRoulette*> v_RouletteItem;
 
@@ -35,7 +34,6 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 	if (NoMoreItem)
 		return true;
 
-	MinChance = 255; // avoid endless loop at pick gift
 	v_RouletteItem.reserve(ROULETTE_ITEM_MAX);
 
 	char c_pszFileName[FILE_MAX_LEN];
@@ -75,30 +73,28 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 		return false;
 	}
 
-	for (int i = 0; i < ROULETTE_ITEM_MAX && i < RouletteGroup->GetRowCount() - 1; i++) {
+	int RowCount = RouletteGroup->GetRowCount() - 2; // -2: active, price
+	for (int i = 0; i < ROULETTE_ITEM_MAX && i < RowCount; i++) {
 		DWORD vnum;
 		BYTE count, chance;
 
 		if (!RouletteGroup->GetValue(i, "vnum", vnum)) {
-			sys_err("CSoulRoulette::RouletteGroup vnum error. (line: %d)", i + 1);
+			sys_err("CSoulRoulette::RouletteGroup vnum error. (line: %d)", i);
 			return false;
 		}
 
 		if (!RouletteGroup->GetValue(i, "count", count)) {
-			sys_err("CSoulRoulette::RouletteGroup count error. (line: %d)", i + 1);
+			sys_err("CSoulRoulette::RouletteGroup count error. (line: %d)", i);
 			return false;
 		}
 
 		if (!RouletteGroup->GetValue(i, "chance", chance)) {
-			sys_err("CSoulRoulette::RouletteGroup chance error. (line: %d)", i + 1);
+			sys_err("CSoulRoulette::RouletteGroup chance error. (line: %d)", i);
 			return false;
 		}
 
 		SRoulette* data = new SRoulette(vnum, count, chance);
 		v_RouletteItem.push_back(data);
-
-		if (MinChance > chance)
-			MinChance = chance;
 	}
 
 	return true;
@@ -171,18 +167,23 @@ void CSoulRoulette::TurnWheel()
 
 	turn_count++;
 }
-
+#include <algorithm>
 int CSoulRoulette::PickAGift()
 {
 	const BYTE Chance = GetChance();
+	std::vector<CSoulRoulette::SRoulette*>::const_iterator it = std::min_element(v_RouletteItem.begin(), v_RouletteItem.end(), SRoulette::ByChance());
+	
+	if (it != v_RouletteItem.end()) {
+		const BYTE MinChance = (*it)->chance;
 
-	while (v_RouletteItem.size() && Chance >= MinChance) {
-		const int rand_pos = number(0, static_cast<int>(v_RouletteItem.size()) - 1);
-		const SRoulette* Roulette = v_RouletteItem[rand_pos];
+		while (Chance >= MinChance) {
+			const int rand_pos = number(0, static_cast<int>(v_RouletteItem.size()) - 1);
+			const SRoulette* Roulette = v_RouletteItem[rand_pos];
 
-		if (Chance >= Roulette->chance) {
-			SetGift(Roulette->vnum, Roulette->count);
-			return rand_pos;
+			if (Chance >= Roulette->chance) {
+				SetGift(Roulette->vnum, Roulette->count);
+				return rand_pos;
+			}
 		}
 	}
 
