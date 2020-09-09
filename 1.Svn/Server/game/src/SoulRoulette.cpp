@@ -24,6 +24,13 @@ CSoulRoulette::~CSoulRoulette() {
 		LogManager::instance().SoulRouletteLog(ch->GetName(), GetGiftVnum(), GetGiftCount());
 }
 
+template <typename T> std::string NumberToString(T Number)
+{
+	std::ostringstream ss;
+	ss << Number;
+	return ss.str();
+}
+
 bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 {
 	for (std::vector<CSoulRoulette::SRoulette*>::const_iterator it = v_RouletteItem.begin(); it != v_RouletteItem.end(); ++it)
@@ -74,22 +81,29 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 	}
 
 	int RowCount = RouletteGroup->GetRowCount() - 2; // -2: active, price
-	for (int i = 0; i < ROULETTE_ITEM_MAX && i < RowCount; i++) {
+	for (int i = 1; i <= ROULETTE_ITEM_MAX && i <= RowCount; i++) {
 		DWORD vnum;
 		BYTE count, chance;
 
-		if (!RouletteGroup->GetValue(i, "vnum", vnum)) {
-			sys_err("CSoulRoulette::RouletteGroup vnum error. (line: %d)", i);
+		//std::string id = std::to_string(i); // C++11(+)
+		std::string id = NumberToString(i);
+
+		// Why string? Because CGroupNode m_map_rows is map(sorted). It's storing strings not indexes.
+		// Example GetValue(0) gives you row 1, GetValue(1) gives you row 10
+		// Now I can access value with string directly
+
+		if (!RouletteGroup->GetValue(id, "vnum", vnum)) {
+			sys_err("CSoulRoulette::RouletteGroup vnum error. (line: %s)", id.c_str());
 			return false;
 		}
 
-		if (!RouletteGroup->GetValue(i, "count", count)) {
-			sys_err("CSoulRoulette::RouletteGroup count error. (line: %d)", i);
+		if (!RouletteGroup->GetValue(std::to_string(i), "count", count)) {
+			sys_err("CSoulRoulette::RouletteGroup count error. (line: %s)", id.c_str());
 			return false;
 		}
 
-		if (!RouletteGroup->GetValue(i, "chance", chance)) {
-			sys_err("CSoulRoulette::RouletteGroup chance error. (line: %d)", i);
+		if (!RouletteGroup->GetValue(std::to_string(i), "chance", chance)) {
+			sys_err("CSoulRoulette::RouletteGroup chance error. (line: %s)", id.c_str());
 			return false;
 		}
 
@@ -128,10 +142,10 @@ void CSoulRoulette::SendPacket(BYTE option, int arg1, int arg2)
 	ch->GetDesc()->Packet(&p, sizeof(TPacketGCSoulRoulette));
 }
 
-static std::string MoneyString()
+template<typename T> std::string MoneyString(T val)
 {
 	const int comma = 3;
-	std::string str = std::to_string(RoulettePrice);
+	std::string str = NumberToString(val);
 	int pos = static_cast<int>(str.length()) - comma;
 
 	while (pos > 0) {
@@ -150,7 +164,7 @@ void CSoulRoulette::TurnWheel()
 	}
 
 	if (ch->GetGold() < RoulettePrice) {
-		ch->ChatPacket(CHAT_TYPE_INFO, "You need %s yang for <Soul Roulette>", MoneyString().c_str());
+		ch->ChatPacket(CHAT_TYPE_INFO, "You need %s yang for <Soul Roulette>", MoneyString(RoulettePrice).c_str());
 		return;
 	}
 
@@ -172,7 +186,7 @@ int CSoulRoulette::PickAGift()
 {
 	const BYTE Chance = GetChance();
 	std::vector<CSoulRoulette::SRoulette*>::const_iterator it = std::min_element(v_RouletteItem.begin(), v_RouletteItem.end(), SRoulette::ByChance());
-	
+
 	if (it != v_RouletteItem.end()) {
 		const BYTE MinChance = (*it)->chance;
 
