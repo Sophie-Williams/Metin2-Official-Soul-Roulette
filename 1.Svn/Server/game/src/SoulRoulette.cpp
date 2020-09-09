@@ -97,12 +97,12 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 			return false;
 		}
 
-		if (!RouletteGroup->GetValue(std::to_string(i), "count", count)) {
+		if (!RouletteGroup->GetValue(id, "count", count)) {
 			sys_err("CSoulRoulette::RouletteGroup count error. (line: %s)", id.c_str());
 			return false;
 		}
 
-		if (!RouletteGroup->GetValue(std::to_string(i), "chance", chance)) {
+		if (!RouletteGroup->GetValue(id, "chance", chance)) {
 			sys_err("CSoulRoulette::RouletteGroup chance error. (line: %s)", id.c_str());
 			return false;
 		}
