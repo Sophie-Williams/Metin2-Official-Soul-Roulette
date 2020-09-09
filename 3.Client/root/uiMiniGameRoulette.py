@@ -3,8 +3,8 @@
 import ui, app, net, wndMgr, localeInfo, uiCommon, player
 
 ROULETTE_SLOT_MAX = player.ROULETTE_ITEM_MAX
-spin_time = (325, 105, 75, 40, 25, 10)
-edge_effect_pos_tuple = ((25, 46), (69, 46), (113, 46), (157, 46), (201, 46), (245, 46), (245, 90), (245, 134), (245, 178), (245, 222), (245, 266), (201, 266), (157, 266), (113, 266), (69, 266), (25, 266), (25, 222), (25, 178), (25, 134), (25, 90))
+spin_time = player.GetRouletteData(0)
+edge_effect_pos_tuple = player.GetRouletteData(1)
 
 class RouletteWindow(ui.ScriptWindow):		
 	def __init__(self):
@@ -41,7 +41,7 @@ class RouletteWindow(ui.ScriptWindow):
 		wndMgr.Hide(self.hWnd)
 		
 	def Close(self):
-		net.SoulRoulettePacket(0) # Request Close
+		net.SoulRoulettePacket(player.ROULETTE_PACKET_CLOSE)
 		
 	def __LoadScript(self, fileName):
 		pyScrLoader = ui.PythonScriptLoader()
@@ -89,7 +89,7 @@ class RouletteWindow(ui.ScriptWindow):
 			exception.Abort("RouletteWindow.LoadWindow.__BindEvent")
 			
 	def TurnPacket(self):
-		net.SoulRoulettePacket(1) # Request Turn
+		net.SoulRoulettePacket(player.ROULETTE_PACKET_TURN)
 		self.PopupDialog.Close()
 		
 	def EdgeEffect(self, i):
@@ -111,7 +111,7 @@ class RouletteWindow(ui.ScriptWindow):
 		self.lastUpdate = app.GetGlobalTime()
 		
 		if self.CurrentPos == self.NextPos and self.SpinTourCount <= 0:
-			net.SoulRoulettePacket(2) # Request gift
+			net.SoulRoulettePacket(player.ROULETTE_PACKET_GIFT)
 			self.IsTurning = False
 			self.NextPos = -1
 			self.SpinTourCount = 1
