@@ -6,8 +6,8 @@ void LogManager::HackCRCLog(const char * c_pszHackName, const char * c_pszLogin,
 
 ///Add
 #if defined(__BL_SOUL_ROULETTE__)
-void LogManager::SoulRouletteLog(const char* Name, const int vnum, const int count, const bool state)
+void LogManager::SoulRouletteLog(const char* table, const char* Name, const int vnum, const int count, const bool state)
 {
-	Query("INSERT INTO soul_roulette_log%s (name, vnum, count, state, date) VALUES('%s', '%d', '%d', '%s', NOW())", get_table_postfix(), Name, vnum, count, (state ? "OK" : "ERROR"));
+	Query("INSERT INTO %s%s (name, vnum, count, state, date) VALUES('%s', '%d', '%d', '%s', NOW())", table, get_table_postfix(), Name, vnum, count, (state ? "OK" : "ERROR"));
 }
 #endif

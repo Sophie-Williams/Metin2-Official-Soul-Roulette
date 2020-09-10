@@ -7,21 +7,23 @@
 #include "log.h"
 #include "config.h"
 #include "sectree_manager.h"
+#include "db.h"
 
 #if defined(__BL_SOUL_ROULETTE__)
 static int RoulettePrice = 250000;
 static bool EventActive;
+static const char* mTableName = "soul_roulette_log";
 static std::vector<CSoulRoulette::SRoulette*> v_RouletteItem;
 
 CSoulRoulette::CSoulRoulette(LPCHARACTER m_ch)
 	: ch(m_ch), gift_vnum(0), gift_count(1), turn_count(0)
 {
-	SendPacket(CSoulRoulette::OPEN);
+	SendPacket(CSoulRoulette::Packet::OPEN);
 }
 
 CSoulRoulette::~CSoulRoulette() {
 	if (GetGiftVnum())
-		LogManager::instance().SoulRouletteLog(ch->GetName(), GetGiftVnum(), GetGiftCount(), false);
+		StateError(Error::ADD, ch);
 }
 
 template <typename T> std::string NumberToString(T Number)
@@ -40,7 +42,7 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 
 	if (NoMoreItem)
 		return true;
-
+	
 	v_RouletteItem.reserve(ROULETTE_ITEM_MAX);
 
 	char c_pszFileName[FILE_MAX_LEN];
@@ -107,8 +109,7 @@ bool CSoulRoulette::ReadRouletteData(bool NoMoreItem)
 			return false;
 		}
 
-		SRoulette* data = new SRoulette(vnum, count, chance);
-		v_RouletteItem.push_back(data);
+		v_RouletteItem.push_back(new CSoulRoulette::SRoulette(vnum, count, chance));
 	}
 
 	return true;
@@ -126,14 +127,14 @@ void CSoulRoulette::SendPacket(BYTE option, int arg1, int arg2)
 	p.option = option;
 
 	switch (option) {
-	case CSoulRoulette::OPEN:
+	case CSoulRoulette::Packet::OPEN:
 		p.yang = RoulettePrice;
 		for (size_t i = 0; i < v_RouletteItem.size(); i++) {
 			p.ItemInfo[i].vnum = v_RouletteItem[i]->vnum;
 			p.ItemInfo[i].count = v_RouletteItem[i]->count;
 		}
 		break;
-	case CSoulRoulette::TURN:
+	case CSoulRoulette::Packet::TURN:
 		p.ItemInfo[0].vnum = arg1;
 		p.ItemInfo[0].count = arg2;
 		break;
@@ -164,7 +165,7 @@ void CSoulRoulette::TurnWheel()
 	}
 
 	if (ch->GetGold() < RoulettePrice) {
-		ch->ChatPacket(CHAT_TYPE_INFO, "You need %s yang for <Soul Roulette>", MoneyString(RoulettePrice).c_str());
+		ch->ChatPacket(CHAT_TYPE_INFO, "<Soul Roulette> You need %s yang.", MoneyString(RoulettePrice).c_str());
 		return;
 	}
 
@@ -177,7 +178,7 @@ void CSoulRoulette::TurnWheel()
 	ch->PointChange(POINT_GOLD, -RoulettePrice);
 
 	//spin count, pos
-	SendPacket(CSoulRoulette::TURN, number(3, 5), Rand);
+	SendPacket(CSoulRoulette::Packet::TURN, number(3, 5), Rand);
 
 	turn_count++;
 }
@@ -185,14 +186,14 @@ void CSoulRoulette::TurnWheel()
 int CSoulRoulette::PickAGift()
 {
 	const BYTE Chance = GetChance();
-	std::vector<CSoulRoulette::SRoulette*>::const_iterator it = std::min_element(v_RouletteItem.begin(), v_RouletteItem.end(), SRoulette::ByChance());
+	std::vector<CSoulRoulette::SRoulette*>::const_iterator it = std::min_element(v_RouletteItem.begin(), v_RouletteItem.end(), CSoulRoulette::SRoulette::ByChance());
 
 	if (it != v_RouletteItem.end()) {
 		const BYTE MinChance = (*it)->chance;
 
 		while (Chance >= MinChance) {
 			const int rand_pos = number(0, static_cast<int>(v_RouletteItem.size()) - 1);
-			const SRoulette* Roulette = v_RouletteItem[rand_pos];
+			const CSoulRoulette::SRoulette* Roulette = v_RouletteItem[rand_pos];
 
 			if (Chance >= Roulette->chance) {
 				SetGift(Roulette->vnum, Roulette->count);
@@ -210,11 +211,64 @@ void CSoulRoulette::GiveGift()
 
 	if (GiftVnum) {
 		ch->AutoGiveItem(GiftVnum, GetGiftCount());
-		LogManager::instance().SoulRouletteLog(ch->GetName(), GiftVnum, GetGiftCount(), true);
+		LogManager::instance().SoulRouletteLog(mTableName, ch->GetName(), GiftVnum, GetGiftCount(), true);
 		SetGift(0, 1); // reset
 	}
 	else
 		sys_err("CSoulRoulette::GiveGift: <player: %s> is trying to get item without item data.", ch->GetName());
+}
+
+void CSoulRoulette::StateError(BYTE option, LPCHARACTER ch)
+{
+	static std::vector<CSoulRoulette::ErrorData*> v_Err;
+
+	switch (option)
+	{
+	case CSoulRoulette::Error::LOAD: // from mysql
+	{
+		char szQuery[80];
+		snprintf(szQuery, sizeof(szQuery), "SELECT vnum, count, name FROM log.%s WHERE state = 'ERROR'", mTableName);
+		std::unique_ptr<SQLMsg> pMsg1(DBManager::instance().DirectQuery(szQuery));
+		
+		MYSQL_ROW row;
+		while ((row = mysql_fetch_row(pMsg1->Get()->pSQLResult))) {
+			DWORD vnum; BYTE count;
+			str_to_number(vnum, row[0]);
+			str_to_number(count, row[1]);
+			v_Err.push_back(new CSoulRoulette::ErrorData(vnum, count, row[2]));
+		}
+
+		std::unique_ptr<SQLMsg> pMsg2(DBManager::instance().DirectQuery("DELETE FROM log.%s WHERE state = 'ERROR'", mTableName));
+		break;
+	}	
+	case CSoulRoulette::Error::ADD: // from game
+		if (ch) {
+			const CSoulRoulette* Roulette = ch->GetSoulRoulette();
+			if (Roulette)
+				v_Err.push_back(new CSoulRoulette::ErrorData(Roulette->GetGiftVnum(), Roulette->GetGiftCount(), ch->GetName()));
+		}
+		break;
+	case CSoulRoulette::Error::GIVE: // when player login again
+		if (ch) {
+			std::vector<CSoulRoulette::ErrorData*>::const_iterator it = std::find_if(v_Err.begin(), v_Err.end(), CSoulRoulette::ErrorData::FindName(ch->GetName()));
+			// we don't need iterate all data
+			if (it != v_Err.end()) {
+				const CSoulRoulette::ErrorData* p_Error = (*it);
+				ch->ChatPacket(CHAT_TYPE_INFO, "<Soul Roulette> Don't worry, you got your gift!");
+				ch->AutoGiveItem(p_Error->vnum, p_Error->count);
+				v_Err.erase(it);
+				delete p_Error;
+			}
+		}
+		break;
+	case CSoulRoulette::Error::SHUTDOWN: // add log if player still doesn't get his gift(Server is closing)
+		for (std::vector<CSoulRoulette::ErrorData*>::const_iterator it = v_Err.begin(); it != v_Err.end(); ++it) {
+			const CSoulRoulette::ErrorData* p_Error = (*it);
+			LogManager::instance().SoulRouletteLog(mTableName, p_Error->name.c_str(), p_Error->vnum, p_Error->count, false);
+			delete p_Error;
+		}
+		break;
+	}
 }
 
 void CSoulRoulette::SetGift(const DWORD vnum, const BYTE count)

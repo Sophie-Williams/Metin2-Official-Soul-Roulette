@@ -14,8 +14,13 @@ public:
 	void GiveGift();
 	DWORD GetGiftVnum() const;
 	void SendPacket(BYTE option, int arg1 = 0 , int arg2 = 0);
+	
+	enum Error { LOAD, ADD, GIVE, SHUTDOWN };
+	enum Packet { OPEN, CLOSE, TURN };
 
-	enum { OPEN, CLOSE, TURN };
+	static bool ReadRouletteData(bool NoMoreItem = false);
+	static void StateError(BYTE, LPCHARACTER);
+
 	struct SRoulette
 	{
 		DWORD vnum;
@@ -23,8 +28,8 @@ public:
 		BYTE chance; // max 255
 		SRoulette(DWORD m_vnum, BYTE m_count, BYTE m_chance)
 			: vnum(m_vnum), count(m_count), chance(m_chance) {}
-		
-		struct ByChance 
+
+		struct ByChance
 		{
 			bool operator ()(const CSoulRoulette::SRoulette* a, const CSoulRoulette::SRoulette* b) const
 			{
@@ -33,12 +38,25 @@ public:
 		};
 	};
 
-	static bool ReadRouletteData(bool NoMoreItem = false);
-
 private:
+	struct ErrorData
+	{
+		DWORD vnum;
+		BYTE count;
+		std::string name;
+		ErrorData(DWORD m_vnum, BYTE m_count, const char* m_name)
+			: vnum(m_vnum), count(m_count), name(m_name)
+		{}
+		struct FindName
+		{
+			std::string s_Name;
+			FindName(const char* c_name) : s_Name(c_name) {}
+			bool operator () (const ErrorData* p) { return !p->name.compare(s_Name); }
+		};
+	};
+	
 	void SetGift(const DWORD vnum, const BYTE count);
 	int PickAGift();
-
 	BYTE GetGiftCount() const;
 	WORD GetTurnCount() const;
 	BYTE GetChance() const;

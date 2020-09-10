@@ -24,7 +24,7 @@ void CInputMain::SoulRoulette(LPCHARACTER ch, const char* data)
 				ch->ChatPacket(CHAT_TYPE_INFO, "Please wait, <Soul Roulette> is active now.");
 			else
 			{
-				ch->GetSoulRoulette()->SendPacket(CSoulRoulette::CLOSE);
+				ch->GetSoulRoulette()->SendPacket(CSoulRoulette::Packet::CLOSE);
 				ch->SetSoulRoulette(NULL);
 			}
 		}
